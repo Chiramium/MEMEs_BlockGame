@@ -1,0 +1,4 @@
+プロジェクト名 : memes_final
+
+Renesas SuperH RISC engine Standard Toolchainを9.2.0.0 -> 9.4.3.0にアップグレードした。
+

@@ -1,0 +1,14 @@
+-cpu=sh2
+-object="C:\WorkSpace\memes_final_4\memes_final\memes_final\Debug\sbrk.obj"
+-debug
+-gbr=auto
+-chgincpath
+-errorpath
+"C:\WorkSpace\memes_final_4\memes_final\memes_final\sbrk.c"
+-global_volatile=0
+-opt_range=all
+-infinite_loop=0
+-del_vacant_loop=0
+-struct_alloc=1
+-lang=c
+-nologo

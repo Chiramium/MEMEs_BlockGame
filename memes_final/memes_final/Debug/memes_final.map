@@ -1,0 +1,55 @@
+Optimizing Linkage Editor (V.10.02.01.000)        12-Jan-2021 00:39:09
+
+*** Options ***
+
+-subcommand=C:\WorkSpace\memes_final_4\memes_final\memes_final\Debug\memes_final.hlk
+-noprelink
+-rom=D=R
+-nomessage
+-list="C:\WorkSpace\memes_final_4\memes_final\memes_final\Debug\memes_final.map"
+-nooptimize
+-start=DVECTTBL,DINTTBL,PIntPRG/04000000,PResetPRG/04000800,P,C,C$BSEC,C$DSEC,D/04001000,B,R/04020000,S/04060000
+-nologo
+-input="C:\WorkSpace\memes_final_4\memes_final\memes_final\Debug\dbsct.obj"
+-input="C:\WorkSpace\memes_final_4\memes_final\memes_final\Debug\hwsetup.obj"
+-input="C:\WorkSpace\memes_final_4\memes_final\memes_final\Debug\intprg.obj"
+-input="C:\WorkSpace\memes_final_4\memes_final\memes_final\Debug\lowlvl.obj"
+-input="C:\WorkSpace\memes_final_4\memes_final\memes_final\Debug\lowsrc.obj"
+-input="C:\WorkSpace\memes_final_4\memes_final\memes_final\Debug\memes_final.obj"
+-input="C:\WorkSpace\memes_final_4\memes_final\memes_final\Debug\resetprg.obj"
+-input="C:\WorkSpace\memes_final_4\memes_final\memes_final\Debug\sbrk.obj"
+-input="C:\WorkSpace\memes_final_4\memes_final\memes_final\Debug\vecttbl.obj"
+-library="C:\WorkSpace\memes_final_4\memes_final\memes_final\Debug\memes_final.lib"
+-output="C:\WorkSpace\memes_final_4\memes_final\memes_final\Debug\memes_final.abs"
+-end
+
+*** Error information ***
+
+*** Mapping List ***
+
+SECTION                            START      END         SIZE   ALIGN
+
+DVECTTBL
+                                  04000000  0400000f        10   4
+DINTTBL
+                                  04000010  040003ff       3f0   4
+PIntPRG
+                                  04000400  040005f7       1f8   4
+PResetPRG
+                                  04000800  0400084b        4c   4
+P
+                                  04001000  04002f33      1f34   4
+C
+                                  04002f34  0400323e       30b   4
+C$BSEC
+                                  04003240  04003247         8   4
+C$DSEC
+                                  04003248  04003253         c   4
+D
+                                  04003254  04003273        20   4
+B
+                                  04020000  04046143     26144   4
+R
+                                  04046144  04046163        20   4
+S
+                                  04060000  040603ff       400   4

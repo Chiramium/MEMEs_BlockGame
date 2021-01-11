@@ -1,0 +1,12 @@
+"C:\WorkSpace\memes_final_4\memes_final\memes_final\lowlvl.src"
+-cpu=sh2
+-endian=big
+-round=zero
+-denormalize=off
+-debug
+-object="C:\WorkSpace\memes_final_4\memes_final\memes_final\Debug\lowlvl.obj"
+-literal=pool,branch,jump,return
+-nolist
+-nologo
+-chgincpath
+-errorpath
