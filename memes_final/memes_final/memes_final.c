@@ -29,7 +29,7 @@
 #define LCD_RW      (PD.DR.BIT.B23)
 #define LCD_DATA    (PD.DR.BYTE.HH)
  
-#define NMROF_ROCKS 7
+#define NMROF_BLOCKS 110
 
 #define	SD_CD		(PE.DR.BIT.B11)
 #define	SD_CS		(PE.DR.BIT.B9)
@@ -61,7 +61,7 @@ _UWORD img_C[192];
 struct position {
   int x;	//
   int y;	// LCD上の座標
-  int active;	// 岩を表示...1 / 非表示...0 / アイテム...2
+  int active;	// ブロックを表示...1 / 非表示...0 / アイテム...2
 };
 
 struct ball {
@@ -500,7 +500,7 @@ void move_rock(struct position rock[])
 {
     int i;
  
-    for (i = 0; i < NMROF_ROCKS; i++) {
+    for (i = 0; i < NMROF_BLOCKS; i++) {
         if (rock[i].active) {
             // 画面上に岩が存在する
             LCD_cursor(rock[i].x, rock[i].y);
@@ -530,7 +530,7 @@ void new_rock(struct position rock[])
 {
     int i;
  
-    for (i = 0; i < NMROF_ROCKS; i++) {
+    for (i = 0; i < NMROF_BLOCKS; i++) {
         if (rock[i].active == 0) {
             // -- 新しい岩 --
 			if (rand() % 5 == 0) {	//	20%の確率でアイテムを生成
@@ -558,22 +558,27 @@ void new_rock(struct position rock[])
 void erase_rock(struct position rock[])
 {
 	int i;
-	for (i = 0; i < NMROF_ROCKS; i++) {	//	岩をすべてはじめの場所に初期化して非表示にする
+	for (i = 0; i < NMROF_BLOCKS; i++) {	//	岩をすべてはじめの場所に初期化して非表示にする
 		rock[i].active = 0;
 		rock[i].x = 15;
 		rock[i].y =1;
 	}
 }
 
-void move_ball(struct ball *ball, struct position *me)
+void move_ball(struct ball *ball, struct position *me, struct position *block)
 {
 	struct ball old_position;
+	int i;
+	int bflag_x = 0, bflag_x_right = 0, bflag_x_left = 0;
+	int colbl_x = 0;
+	int bflag_y = 0, bflag_y_up = 0, bflag_y_down = 0;
+	int colbl_y = 0;
  
     old_position.x = ball->x;
     old_position.y = ball->y;
 	
 	ball->x += ball->dx;
-	if (ball->x >= 320-8 || ball->x <= 0 || (ball->x >= me->x-8 && ball->x <= me->x+32 && ball->y >= me->y-6 && ball->y <= me->y+6)) {
+	if ((ball->x >= 320-8) || (ball->x <= 0) || (ball->x >= me->x-8 && ball->x <= me->x+32 && ball->y >= me->y-6 && ball->y <= me->y+6)) {
 		ball->dx = -ball->dx;
 	}
 	if (ball->x < 0) {
@@ -603,6 +608,64 @@ void move_ball(struct ball *ball, struct position *me)
 		ball->y = me->y-8;
 	}
 	
+	for (i = 0; i < NMROF_BLOCKS; i++) {
+		/*if (ball->x > block->x-8 && ball->x < block->x+8) {
+			ball->x = colbl_x-8;
+		}
+		if (ball->x > block->x-7 && ball->x < block->x+24) {
+			ball->x = colbl_x+24;
+		}*/
+		if (block->active == 1) {
+			if ((ball->x >= block->x-8 && ball->x <= block->x+24) && (ball->y >= block->y-8 && ball->y <= block->y+8)) {
+				if (ball->y >= block->y-8 && ball->y < block->y) {
+					TFT_draw_rect(block->x, block->y, 24, 8, _COL_WHITE);
+					block->active = 0;
+					ball->y = block->y-8;
+				}
+				if (ball->y >= block->y && ball->y <= block->y+8) {
+					TFT_draw_rect(block->x, block->y, 24, 8, _COL_WHITE);
+					block->active = 0;
+					ball->y = block->y+8;
+				}
+				
+				if (ball->y == block->y-8) {
+					bflag_y = 1;
+				}
+				if (ball->y == block->y+8) {
+					bflag_y = 1;
+				}
+
+				if (ball->x >= block->x-8 && ball->x < block->x+8) {
+					TFT_draw_rect(block->x, block->y, 24, 8, _COL_WHITE);
+					block->active = 0;
+					ball->x = block->x-8;
+				}
+				if (ball->x >= block->x+8 && ball->x <= block->x+24) {
+					TFT_draw_rect(block->x, block->y, 24, 8, _COL_WHITE);
+					block->active = 0;
+					ball->x = block->x-8;
+				}
+		
+				if (ball->x == block->x-8) {
+					bflag_x = 1;
+				}
+				if (ball->x == block->x+24) {
+					bflag_x = 1;
+				}
+			}
+		}
+		block++;
+	}
+	
+	if (bflag_x == 1) {
+		ball->dx = -ball->dx;
+		bflag_x = 0;
+	}
+	if (bflag_y == 1) {
+		ball->dy = -ball->dy;
+		bflag_y = 0;
+	}
+	
 	TFT_draw_rect(old_position.x, old_position.y, 8, 8, _COL_WHITE);
 	TFT_put_img(ball->x, ball->y, 8, 8, img_A);
 }
@@ -613,7 +676,7 @@ void move_ball(struct ball *ball, struct position *me)
 void main()
 {
     struct position me;                 // 自分の車の座標
-    struct position rock[NMROF_ROCKS];  // 岩の座標
+    struct position block[NMROF_BLOCKS];  // ブロックの座標
 	struct position player;
 	struct ball ball;
     int move_timing, new_timing;
@@ -621,6 +684,8 @@ void main()
     int stop_sw, run_sw, pause_sw;
     int status;
 	char result[3] = {' ', ' ', ' '};
+	
+	struct position *block_p;
 	
 	int j;
 	unsigned int SECT_NR;
@@ -634,6 +699,8 @@ void main()
 	unsigned int readsize = 0;
 	unsigned int imgNum = 0;
 	unsigned int img_firstFlag = 0;
+	
+	block_p = block;
 	
 	init_CMT0();
 	init_SCI2();
@@ -1166,19 +1233,25 @@ void main()
 				player.y = 224;
 				
 				ball.x = 156;
-				ball.dx = 3;
+				ball.dx = -3;
 				ball.y = 216;
-				ball.dy = 3;
+				ball.dy = -3;
 				
 				/* Draw images */
 				//TFT_put_img(156, 216, 8, 8, img_A);
 				//TFT_put_img(player.x, player.y, 32, 6, img_B);
 				for (i = 0; i < 11; i++) {
 					for (j = 0; j < 10; j++) {
-						TFT_put_img(40+(24*j), 24+(8*i), 24, 8, img_C);
+						block_p->x = 40+(24*j);
+						block_p->y = 24+(8*i);
+						block_p->active = 1;
+						printf("%d, %d\n", block_p->x, block_p->y);
+						TFT_put_img(block_p->x, block_p->y, 24, 8, img_C);
+						block_p++;
 					}
 				}
   				TFT_draw_screen();
+				block_p = block;
 
 			// ----------------
 			while (1) {
@@ -1194,7 +1267,7 @@ void main()
 		            stop_sw = SW4;
 		            pause_sw = SW5;
 		            run_sw = SW6;
-					move_ball(&ball, &player);
+					move_ball(&ball, &player, block_p);
 					move_me(&player);
 					//printf("%d, %d\n", player.x, player.y);
 					//TFT_clear();
