@@ -569,10 +569,7 @@ void move_ball(struct ball *ball, struct position *me, struct position *block)
 {
 	struct ball old_position;
 	int i;
-	int bflag_x = 0, bflag_x_right = 0, bflag_x_left = 0;
-	int colbl_x = 0;
-	int bflag_y = 0, bflag_y_up = 0, bflag_y_down = 0;
-	int colbl_y = 0;
+	int flag_x = 0, flag_y = 0;
  
     old_position.x = ball->x;
     old_position.y = ball->y;
@@ -609,62 +606,31 @@ void move_ball(struct ball *ball, struct position *me, struct position *block)
 	}
 	
 	for (i = 0; i < NMROF_BLOCKS; i++) {
-		/*if (ball->x > block->x-8 && ball->x < block->x+8) {
-			ball->x = colbl_x-8;
-		}
-		if (ball->x > block->x-7 && ball->x < block->x+24) {
-			ball->x = colbl_x+24;
-		}*/
 		if (block->active == 1) {
 			if ((ball->x >= block->x-8 && ball->x <= block->x+24) && (ball->y >= block->y-8 && ball->y <= block->y+8)) {
-				if (ball->y >= block->y-8 && ball->y < block->y) {
-					TFT_draw_rect(block->x, block->y, 24, 8, _COL_WHITE);
-					block->active = 0;
-					ball->y = block->y-8;
+				TFT_draw_rect(block->x, block->y, 24, 8, _COL_WHITE);
+				block->active = 0;
+				printf("%d, %d\n", abs((ball->x+4) - (block->x+12)), abs((ball->y+4) - (block->y+4)));
+				if (abs((ball->y+4) - (block->y+4)) >= abs((ball->x+4) - (block->x+12))-7) {
+					if (flag_x != 1) {
+						flag_y = 1;
+					}
 				}
-				if (ball->y >= block->y && ball->y <= block->y+8) {
-					TFT_draw_rect(block->x, block->y, 24, 8, _COL_WHITE);
-					block->active = 0;
-					ball->y = block->y+8;
-				}
-				
-				if (ball->y == block->y-8) {
-					bflag_y = 1;
-				}
-				if (ball->y == block->y+8) {
-					bflag_y = 1;
-				}
-
-				if (ball->x >= block->x-8 && ball->x < block->x+8) {
-					TFT_draw_rect(block->x, block->y, 24, 8, _COL_WHITE);
-					block->active = 0;
-					ball->x = block->x-8;
-				}
-				if (ball->x >= block->x+8 && ball->x <= block->x+24) {
-					TFT_draw_rect(block->x, block->y, 24, 8, _COL_WHITE);
-					block->active = 0;
-					ball->x = block->x-8;
-				}
-		
-				if (ball->x == block->x-8) {
-					bflag_x = 1;
-				}
-				if (ball->x == block->x+24) {
-					bflag_x = 1;
+				if (abs((ball->y+4) - (block->y+4)) < abs((ball->x+4) - (block->x+12))-7) {
+					flag_x = 1;
 				}
 			}
 		}
 		block++;
 	}
 	
-	if (bflag_x == 1) {
+	if (flag_x == 1) {
 		ball->dx = -ball->dx;
-		bflag_x = 0;
 	}
-	if (bflag_y == 1) {
+	if (flag_y == 1) {
 		ball->dy = -ball->dy;
-		bflag_y = 0;
 	}
+
 	
 	TFT_draw_rect(old_position.x, old_position.y, 8, 8, _COL_WHITE);
 	TFT_put_img(ball->x, ball->y, 8, 8, img_A);
@@ -731,7 +697,7 @@ void main()
     // MTU2 ch1
     MTU21.TCR.BIT.TPSC = 3;         // 1/64選択
     MTU21.TCR.BIT.CCLR = 1;         // TGRAのコンペアマッチでクリア
-    MTU21.TGRA = 3125 - 1;         // 100ms
+    MTU21.TGRA = 1563 - 1;         // 10ms
 	
 	// MTU2 ch2
     MTU22.TCR.BIT.TPSC = 3;         // 1/64選択
