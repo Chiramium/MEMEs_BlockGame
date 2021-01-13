@@ -443,25 +443,6 @@ void move_me(struct position *me)
  
     old_position.x = me->x;
     old_position.y = me->y;
- 
- 	/*if (AD0.ADDR0 < 0x4000) {
-        // -- ジョイスティック上 --
-		if (me->y >= 0 + speed) {
-        	me->y -= speed;
-		}
-		else {
-			me->y = 0;
-		}
-    } else if (AD0.ADDR0 > 0xc000) {
-        // -- ジョイスティック下 --
-		if (me->y <= 234 - speed) {
-        	me->y += speed;
-		}
-		else {
-			me->y = 234;
-		}
-    }
-	*/
 	
 	if (AD0.ADDR1 < 0x4000) {
         // -- ジョイスティック右 --
@@ -495,33 +476,19 @@ void isCollided(struct position *me, struct ball *ball)
 	
 }
  
-// -- 岩を移動 --
-void move_rock(struct position rock[])
+// -- スコアを表示 --
+void disp_score(int score)
 {
     int i;
- 
-    for (i = 0; i < NMROF_BLOCKS; i++) {
-        if (rock[i].active) {
-            // 画面上に岩が存在する
-            LCD_cursor(rock[i].x, rock[i].y);
-            LCD_putch(' ');
-            if (rock[i].x == 0) {
-                // 消去
-                rock[i].active = 0;
-				score++;
-				//spk_switch = 1;
-            } else {
-                rock[i].x--;
-                LCD_cursor(rock[i].x, rock[i].y);
-				if (rock[i].active == 2) {	//	アイテムの場合の移動
-					LCD_putch('@');
-				}	
-                else{	//	岩の場合の移動
-					LCD_putch('*');
-				}
-            }
-        }
-    }
+	char num;
+	
+	LCD_cursor(0, 0);
+    LCD_putstr("SCORE:");
+	LCD_cursor(0, 1);
+    LCD_putstr("LIFE:");
+	LCD_cursor(7, 0);
+	num = (char)score;
+	LCD_putch('0');
 }
  
  
@@ -617,7 +584,9 @@ void move_ball(struct ball *ball, struct position *me, struct position *block)
 					}
 				}
 				if (abs((ball->y+4) - (block->y+4)) < abs((ball->x+4) - (block->x+12))-7) {
-					flag_x = 1;
+					if (flag_y != 1) {
+						flag_x = 1;
+					}
 				}
 			}
 		}
@@ -880,7 +849,6 @@ void main()
 		}
     }
 	*/
-	
 	
 	if (!card_exist())
 		printf("No card found\n");
@@ -1218,6 +1186,9 @@ void main()
 				}
   				TFT_draw_screen();
 				block_p = block;
+				
+				LCD_init();	//	LCDを初期化
+				score = 0;
 
 			// ----------------
 			while (1) {
@@ -1225,7 +1196,7 @@ void main()
 				scanf("%x", &SECT_NR);
 				read_sector(SECT_NR, dt);
 				print_sector(SECT_NR, dt);*/
-				//if (MTU21.TSR.BIT.TGFA) { // ゲーム用のタイマのフラグ
+				if (MTU21.TSR.BIT.TGFA) { // ゲーム用のタイマのフラグ
 		            // MTU2 ch1 コンペアマッチ発生(100ms毎)
 		            MTU21.TSR.BIT.TGFA = 0; // フラグクリア
  
@@ -1248,7 +1219,14 @@ void main()
 					if (SW6) {
 						printf("%d, %d\n", player.x, player.y);
 					}
-				//}
+				}
+				if (MTU22.TSR.BIT.TGFA) { // ゲーム用のタイマのフラグ
+					// MTU2 ch1 コンペアマッチ発生(100ms毎)
+		            MTU22.TSR.BIT.TGFA = 0; // フラグクリア
+					
+					//LCD_init();	//	LCDを初期化
+					disp_score(score);
+				}
 			}
 		}
 	}
