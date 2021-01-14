@@ -51,6 +51,7 @@ int counter = 0;	//	スピーカーオン時間をカウントする変数
 int sound = 0;	//	出す音を決める変数
 
 int speed = 5;
+int life = 3;
 
 _UWORD img_A[64];
 		
@@ -477,18 +478,73 @@ void isCollided(struct position *me, struct ball *ball)
 }
  
 // -- スコアを表示 --
+void disp_num(int num)
+{
+	
+			
+}
+
+void sel(int num)
+{
+	
+}
+
+char *itoa( int val, char *a, int radix )
+{
+	char *p = a;
+	unsigned int v = val;
+	int n = 1;
+	while(v >= radix){
+		v /= radix;
+		n++;
+	}
+	p = a + n;
+	v = val;
+	*p = '\0';
+	do {
+		--p;
+		*p = v % radix + '0';
+		if(*p > '9') {
+			*p = v % radix - 10 + 'A';
+		}
+		v /= radix;
+	} while ( p != a);
+	return a;
+}
+
+
 void disp_score(int score)
 {
     int i;
-	char num;
+	char num[8];
+	
+	itoa(score,num,10);
 	
 	LCD_cursor(0, 0);
     LCD_putstr("SCORE:");
+	LCD_cursor(8, 0);
+	LCD_putstr(num);
+}
+
+void disp_life(int life)
+{
+    int i;
+	
 	LCD_cursor(0, 1);
     LCD_putstr("LIFE:");
-	LCD_cursor(7, 0);
-	num = (char)score;
-	LCD_putch('0');
+	
+	if (life > 5) {
+		life = 5;
+	}
+	
+	for (i = 0; i < life; i++) {
+		LCD_cursor(15-(2*i), 1);
+		LCD_putch('*');
+	}
+	for (i; i < 5; i++) {
+		LCD_cursor(15-(2*i), 1);
+		LCD_putch(' ');
+	}
 }
  
  
@@ -560,7 +616,7 @@ void move_ball(struct ball *ball, struct position *me, struct position *block)
 	}
 	
 	ball->y += ball->dy;
-	if (ball->y >= 240-8 || ball->y <= 0 || (ball->y >= me->y-6 && ball->y <= me->y+6 && ball->x >= me->x-8 && ball->x <= me->x+32)) {
+	if (ball->y <= 0 || (ball->y >= me->y-6 && ball->y <= me->y+6 && ball->x >= me->x-8 && ball->x <= me->x+32)) {
 		ball->dy = -ball->dy;
 	}
 	if (ball->y < 0) {
@@ -571,11 +627,23 @@ void move_ball(struct ball *ball, struct position *me, struct position *block)
 	}if (ball->y > me->y-6 && ball->y < me->y+6 && ball->x > me->x-8 && ball->x < me->x+32) {
 		ball->y = me->y-8;
 	}
+	if (ball->y >= 240-8) {
+		if (life > 0) {
+			life--;
+			disp_life(life);
+			ball->x = me->x+12;
+			ball->y = me->y-8;
+		}
+		else {
+			printf("GAME OVER\n");
+		}
+	}
 	
 	for (i = 0; i < NMROF_BLOCKS; i++) {
 		if (block->active == 1) {
 			if ((ball->x >= block->x-8 && ball->x <= block->x+24) && (ball->y >= block->y-8 && ball->y <= block->y+8)) {
 				TFT_draw_rect(block->x, block->y, 24, 8, _COL_WHITE);
+				score += 10;
 				block->active = 0;
 				printf("%d, %d\n", abs((ball->x+4) - (block->x+12)), abs((ball->y+4) - (block->y+4)));
 				if (abs((ball->y+4) - (block->y+4)) >= abs((ball->x+4) - (block->x+12))-7) {
@@ -1189,6 +1257,7 @@ void main()
 				
 				LCD_init();	//	LCDを初期化
 				score = 0;
+				disp_life(life);
 
 			// ----------------
 			while (1) {
