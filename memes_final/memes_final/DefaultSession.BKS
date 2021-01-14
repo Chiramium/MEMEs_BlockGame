@@ -34,8 +34,8 @@
 [CONFIG_INFO_VD4]
 0 
 [WINDOW_POSITION_STATE_DATA_VD1]
-"{WK_00000001_CmdLine}" "WINDOW" 59422 0 1 "0.15" 100 170 111 350 200 17 0 "32771|32772|32778|<<separator>>|32773|32774|<<separator>>|32820|<<separator>>|32801|32824" "0.0" 
-"{WK_00000001_OUTPUT}" "WINDOW" 59422 0 0 "1.00" 100 427 240 350 200 18 0 "36756|36757|36758|36759|<<separator>>|36746|36747|<<separator>>|39531|<<separator>>|39500|39534|<<separator>>|36687" "0.0" 
+"{WK_00000001_CmdLine}" "WINDOW" 59422 0 1 "0.13" 288 170 111 350 200 17 0 "32771|32772|32778|<<separator>>|32773|32774|<<separator>>|32820|<<separator>>|32801|32824" "0.0" 
+"{WK_00000001_OUTPUT}" "WINDOW" 59422 0 0 "1.00" 288 427 240 350 200 18 0 "36756|36757|36758|36759|<<separator>>|36746|36747|<<separator>>|39531|<<separator>>|39500|39534|<<separator>>|36687" "0.0" 
 "{WK_00000002_WORKSPACE}" "WINDOW" 59420 0 0 "1.00" 180 427 240 350 200 18 0 "" "0.0" 
 "{WK_TB00000001_STANDARD}" "TOOLBAR 0" 59419 0 2 "0.00" 0 0 0 0 0 18 0 "" "0.0" 
 "{WK_TB00000002_EDITOR}" "TOOLBAR 0" 59419 0 0 "0.00" 0 0 0 0 0 18 0 "" "0.0" 
@@ -55,7 +55,7 @@
 [WINDOW_POSITION_STATE_DATA_VD3]
 [WINDOW_POSITION_STATE_DATA_VD4]
 [WINDOW_Z_ORDER]
-"C:\WorkSpace\memes_final\memes_final\memes_final\memes_final.c" 
+"C:\WorkSpace\memes_final_4\memes_final\memes_final\memes_final.c" 
 "C:\WorkSpace\TFT_prog3\TFT_prog3.hws" 
 [TARGET_NAME]
 "" "" 1936024431 
