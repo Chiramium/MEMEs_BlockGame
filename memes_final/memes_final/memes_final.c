@@ -43,40 +43,35 @@
 
 volatile	_UWORD FrameBuf[320*240];
  
-enum STS{TITLE, STOP, RUN, PAUSE1, PAUSE2, PAUSE3, CLEAR};
+enum STS{TITLE, STOP, RUN, PAUSE1, PAUSE2, PAUSE3, CLEAR, FAIL};
 
 int score = 0;	//	スコアを格納する変数
-int spk_switch = 0;	//	スピーカーのスイッチ切り替え 0 ... オン / 1 ... オフ
-int counter = 0;	//	スピーカーオン時間をカウントする変数
-int sound = 0;	//	出す音を決める変数
-int status;
+int status;		// ゲームの場面を格納する変数
 
-int speed = 5;
-int life = 3;
+int speed = 5;	// プレイヤーのスピード	
+int life = 3;	// プレイヤーの残機
 
-int blocks = 0;
+int blocks = 0;	// 画面上のブロック数
 
+/* 画像を格納する配列 */
 _UWORD img_A[64];
-		
-_UWORD img_B[192];
-	
+_UWORD img_B[192];	
 _UWORD img_C[192];
-
 _UWORD img_D[192];
 
-_UWORD img_E[192];
- 
+/* ブロックとプレイヤーの情報を格納する構造体 */
 struct position {
   int x;	//
   int y;	// LCD上の座標
   int active;	// ブロックを表示...1 / 非表示...0 / アイテム...2
 };
 
+/* ボールの情報を格納する構造体 */
 struct ball {
   int x;	//
   int y;	// LCD上の座標
-  int dx;
-  int dy;
+  int dx;   //
+  int dy;	// ベクトル成分
 };
 
 void wait_us(_UINT);
@@ -95,7 +90,6 @@ void TFT_On(void);
 void init_CS2(void);
 void TFT_draw_point(_UWORD x_pix, _UWORD y_pix, _UWORD p_color);
 void TFT_draw_rect(_UWORD x, _UWORD y, _UWORD w, _UWORD h, _UWORD p_color);
-void TFT_put_img16(_UWORD x, _UWORD y, _UWORD *img);
 void TFT_put_img(_UWORD x, _UWORD y, _UWORD w, _UWORD h, _UWORD *img);
 void LCD_inst(_SBYTE);
 void LCD_data(_SBYTE);
@@ -104,8 +98,6 @@ void LCD_putch(_SBYTE);
 void LCD_putstr(_SBYTE *);
 void LCD_cls(void);
 void LCD_init(void);
-void disp_led(_SINT digit);
- 
  
 // --------------------
 // -- 使用する関数群 --
@@ -190,7 +182,6 @@ unsigned char calc_CRC7(unsigned char *data, int len)
 	return (crc & 0x7f);
 }
 
-
 unsigned char SD_send_cmd(unsigned char cmd, int arg)
 {
 	int i;
@@ -218,7 +209,6 @@ unsigned char SD_send_cmd(unsigned char cmd, int arg)
 	return (ret);
 }
 
-
 unsigned int Enter_SPI_mode()
 {
 	int i;
@@ -242,7 +232,6 @@ unsigned int Enter_SPI_mode()
 	return (1);
 }
 
-
 void read_sector(unsigned int sect, unsigned char *dt)
 {
 	unsigned char ch;
@@ -257,7 +246,6 @@ void read_sector(unsigned int sect, unsigned char *dt)
 	SPI_tx_rx(0xff);				// CRC分
 	SPI_tx_rx(0xff);				// CRC分
 }
-
 
 void print_sector(unsigned int sect, unsigned char *dt)
 {
@@ -316,11 +304,9 @@ void TFT_clear(void) {
   }
 }
 
-
 void TFT_On(void) {
   TFTCTRL = 0x4000;
 }
-
 
 void init_CS2(void) {
   BSC.CS2BCR.LONG = 0x12490400;
@@ -339,15 +325,6 @@ void TFT_draw_rect(_UWORD x, _UWORD y, _UWORD w, _UWORD h, _UWORD p_color)
 	for (j = 0; j < h; j++) {
 		for (i = 0; i < w; i++) {
 			TFT_draw_point(x+i, y+j, p_color);
-		}
-	}
-}
-
-void TFT_put_img16(_UWORD x, _UWORD y, _UWORD *img) {
-	int i, j;
-	for (j = 0; j < 16; j++) {
-		for (i = 0; i < 16; i++) {
-			TFT_draw_point(x+i, y+j, *(img+(j*16+i)));
 		}
 	}
 }
@@ -422,32 +399,14 @@ void LCD_init(void) {
     LCD_inst(0x06);
     LCD_inst(0x0c);
 }
-
-//	LEDの表示
-void disp_led(_SINT digit) {
-	_UINT i;
-	_UINT tm = 1000;
-	DIG1 = DIG2 = DIG3 = 0;
-	PA.DR.BYTE.HL &= 0xf0;
-	if (digit == 0) {
-		PA.DR.BYTE.HL |= score % 10;
-		DIG1 = 1;
-	} else if (digit == 1) {
-		PA.DR.BYTE.HL |= (score / 10) % 10;
-		DIG2 = 1;
-	} else {
-		PA.DR.BYTE.HL |= (score / 100) % 10;
-		DIG3 = 1;
-	}
-}
  
 // --------------------------------------------
 // -- ゲーム用の関数群 --
  
-// -- 自分を移動 --
+/* プレイヤーを移動 */
 void move_me(struct position *me)
 {
-    struct position old_position;
+    struct position old_position;	// 移動前の座標
  
     old_position.x = me->x;
     old_position.y = me->y;
@@ -471,50 +430,45 @@ void move_me(struct position *me)
     }
 	TFT_draw_rect(old_position.x, old_position.y, 32, 6, _COL_WHITE);
 	TFT_put_img(me->x, me->y, 32, 6, img_B);
-    //TFT_clear();
 }
 
-
-// -- 衝突判定 --/
-void isCollided(struct position *me, struct ball *ball)
-{
-	int i;
-	int j;
-	
-	
-}
- 
-// -- スコアを表示 --
-char *itoa( int val, char *a, int radix )
+/* int型引数をchar型文字列配列へ変換 */
+char *itoa(int val, char *a, int radix)
 {
 	char *p = a;
 	unsigned int v = val;
 	int n = 1;
-	while(v >= radix){
+	
+	// 桁数の算出
+	while (v >= radix) {
 		v /= radix;
 		n++;
 	}
+	
 	p = a + n;
 	v = val;
-	*p = '\0';
+	*p = '\0';	// EOF
+	
 	do {
 		--p;
-		*p = v % radix + '0';
-		if(*p > '9') {
-			*p = v % radix - 10 + 'A';
+		*p = v % radix + '0';	// 一桁ずつ変換
+		// 十進数で表示できない場合
+		if (*p > '9') {
+			*p = v % radix - 10 + 'A';	// アルファベットに変換
 		}
 		v /= radix;
-	} while ( p != a);
+	} while (p != a);
+	
 	return a;
 }
 
-
+/* スコアを表示 */
 void disp_score(int score)
 {
     int i;
 	char num[8];
 	
-	itoa(score,num,10);
+	itoa(score,num,10);		// スコアを文字列に変換
 	
 	LCD_cursor(0, 0);
     LCD_putstr("SCORE:");
@@ -522,6 +476,7 @@ void disp_score(int score)
 	LCD_putstr(num);
 }
 
+/* 残機を表示 */
 void disp_life(int life)
 {
     int i;
@@ -533,6 +488,7 @@ void disp_life(int life)
 		life = 5;
 	}
 	
+	// ライフの数を表示
 	for (i = 0; i < life; i++) {
 		LCD_cursor(15-(2*i), 1);
 		LCD_putch('*');
@@ -542,52 +498,12 @@ void disp_life(int life)
 		LCD_putch(' ');
 	}
 }
- 
- 
-// -- 新しい岩を作る --
-void new_rock(struct position rock[])
-{
-    int i;
- 
-    for (i = 0; i < NMROF_BLOCKS; i++) {
-        if (rock[i].active == 0) {
-            // -- 新しい岩 --
-			if (rand() % 5 == 0) {	//	20%の確率でアイテムを生成
-				rock[i].active = 2;	//	アイテムをactive:2とする
-			}
-			else {
-            	rock[i].active = 1;	//	岩はactive:1とする
-			}
-            rock[i].x = 15;
-            rock[i].y = rand() % 2;
-            LCD_cursor(rock[i].x, rock[i].y);
-			if (rock[i].active == 2) {	//	activeが2なら岩を全消去するアイテム（ボム）を表示
-            	LCD_putch('@');
-			}
-			else {	//	1なら岩を表示
-				LCD_putch('*');
-			}
-            break;
-        }
-    }
-}
 
-
-// -- 岩を全消去 --
-void erase_rock(struct position rock[])
-{
-	int i;
-	for (i = 0; i < NMROF_BLOCKS; i++) {	//	岩をすべてはじめの場所に初期化して非表示にする
-		rock[i].active = 0;
-		rock[i].x = 15;
-		rock[i].y =1;
-	}
-}
-
+/* ボールの移動, ブロックの処理 */
 void move_ball(struct ball *ball, struct position *me, struct position *block)
 {
-	struct ball old_position;
-	struct position col_block;
+	struct ball old_position;	// 移動前の座標
+	struct position col_block;  // 当たったブロックの座標
 	int i;
 	int flag_x = 0, flag_y = 0;
  
@@ -595,6 +511,7 @@ void move_ball(struct ball *ball, struct position *me, struct position *block)
     old_position.y = ball->y;
 	
 	ball->x += ball->dx;
+	// x方向の跳ね返り
 	if ((ball->x >= 320-8) || (ball->x <= 0) || (ball->x >= me->x-8 && ball->x <= me->x+32 && ball->y >= me->y-6 && ball->y <= me->y+6)) {
 		ball->dx = -ball->dx;
 	}
@@ -613,6 +530,7 @@ void move_ball(struct ball *ball, struct position *me, struct position *block)
 	}
 	
 	ball->y += ball->dy;
+	// y方向の跳ね返り
 	if (ball->y <= 0) {
 		ball->dy = -ball->dy;
 	}
@@ -641,8 +559,9 @@ void move_ball(struct ball *ball, struct position *me, struct position *block)
 		ball->y = me->y-8;
 	}
 	
+	// 画面下にボールが落ちた場合
 	if (ball->y >= 240-8) {
-		if (life > 0) {
+		if (life > 0) {	// 残機を減らして再スタート
 			life--;
 			disp_life(life);
 			TFT_draw_rect(me->x, me->y, 32, 6, _COL_WHITE);
@@ -651,24 +570,23 @@ void move_ball(struct ball *ball, struct position *me, struct position *block)
 			ball->y = me->y-8;
 			status = STOP;
 		}
-		else {
-			printf("GAME OVER\n");
+		else {	// ゲームオーバー
+			status = FAIL;
 		}
 	}
 	
+	// ブロックごとの衝突判定
 	for (i = 0; i < NMROF_BLOCKS; i++) {
 		if (block->active == 1 || block->active == 2 || block->active == 3) {
 			if ((ball->x >= block->x-8 && ball->x <= block->x+24) && (ball->y >= block->y-8 && ball->y <= block->y+8)) {
-				if (block->active != 3) {
-					block->active -= 1;
-				}
-				if (block->active == 0) {
+				block->active -= 1;
+				if (block->active == 0) {	// ブロックを消してスコア加算
 					score += 10;
 					blocks -= 1;
 					disp_score(score);
 					TFT_draw_rect(block->x, block->y, 24, 8, _COL_WHITE);
 				}
-				else if (block->active == 1) {
+				else if (block->active == 1) {	//ブロックを書き換えてスコア加算
 					score += 5;
 					blocks -= 1;
 					disp_score(score);
@@ -676,12 +594,8 @@ void move_ball(struct ball *ball, struct position *me, struct position *block)
 					col_block.y = block->y;
 					col_block.active = block->active;
 				}
-				else if (block->active == 3) {
-					col_block.x = block->x;
-					col_block.y = block->y;
-					col_block.active = block->active;
-				}
 				
+				// ブロックとボールの中心座標の差をx, yで比較し,跳ね返る方向を判断
 				if (abs((ball->y+4) - (block->y+4)) >= abs((ball->x+4) - (block->x+12))-8) {
 					if (flag_x != 1) {
 						flag_y = 1;
@@ -692,28 +606,19 @@ void move_ball(struct ball *ball, struct position *me, struct position *block)
 						flag_x = 1;
 					}
 				}
-				printf("%d, %d\n", abs((ball->x+4) - (block->x+12)), abs((ball->y+4) - (block->y+4)));
+				//printf("%d, %d\n", abs((ball->x+4) - (block->x+12)), abs((ball->y+4) - (block->y+4)));
 			}
-			/*
-			if ((old_position.x >= block->x-8 && old_position.x <= block->x+24) && (old_position.y > block->y-8 && old_position.y < block->y)) {
-				if (flag_x != 1 && block->active == 1) {
-					old_position.y = block->y-8;
-				}
-			}
-			else if ((old_position.x >= block->x-8 && old_position.x <= block->x+24) && (old_position.y >= block->y && old_position.y < block->y+8)) {
-				if (flag_x != 1 && block->active == 1) {
-					old_position.y = block->y+8;
-				}
-			}
-			*/
 		}
 		block++;
 	}
 	
+	// すべてのブロックを消したとき
 	if (blocks <= 0) {
+		score += 100;
 		status = CLEAR;
 	}
 	
+	// 跳ね返り処理
 	if (flag_x == 1) {
 		ball->dx = -ball->dx;
 	}
@@ -721,14 +626,13 @@ void move_ball(struct ball *ball, struct position *me, struct position *block)
 		ball->dy = -ball->dy;
 	}
 	
+	// ボールの位置を更新
 	TFT_draw_rect(old_position.x, old_position.y, 8, 8, _COL_WHITE);
 	TFT_put_img(ball->x, ball->y, 8, 8, img_A);
 	
+	// ブロック書き換え
 	if (col_block.active == 1) {
 		TFT_put_img(col_block.x, col_block.y, 24, 8, img_C);
-	}
-	else if (col_block.active == 3) {
-		TFT_put_img(col_block.x, col_block.y, 24, 8, img_E);
 	}
 }
 
@@ -737,19 +641,16 @@ void move_ball(struct ball *ball, struct position *me, struct position *block)
 // -- メイン関数 --
 void main()
 {
-    struct position me;                 // 自分の車の座標
     struct position block[NMROF_BLOCKS];  // ブロックの座標
-	struct position player;
-	struct ball ball;
-    int move_timing, new_timing;
-    int ad, i, digit = 0;
+	struct position player;				  // プレイヤーの座標
+	struct ball ball;					  // ボールの座標
+    int ad, i;
     int stop_sw, run_sw, pause_sw;
-	int field[110];
-	char result[3] = {' ', ' ', ' '};
 	
 	struct position *block_p;
 	
 	int j;
+	// 画像読み込み用変数
 	unsigned int SECT_NR;
 	unsigned int First_sect_LBA, First_RDE_sect, First_FAT_sect, First_Data_sect;
 	unsigned int BPB_BytesPerSec, BPB_SecPerClus, BPB_RsvdSecCnt;
@@ -764,6 +665,7 @@ void main()
 	
 	block_p = block;
 	
+	// TFT
 	init_CMT0();
 	init_SCI2();
 	init_CS2();
@@ -771,7 +673,6 @@ void main()
   	TFT_clear();
  
     STB.CR4.BIT._AD0 = 0;
-    STB.CR4.BIT._CMT = 0;
     STB.CR4.BIT._MTU2 = 0;
 	
 	PFC.PEIORL.BIT.B0 = 1;
@@ -791,75 +692,49 @@ void main()
     // MTU2 ch1
     MTU21.TCR.BIT.TPSC = 3;         // 1/64選択
     MTU21.TCR.BIT.CCLR = 1;         // TGRAのコンペアマッチでクリア
-    MTU21.TGRA = 25000 - 1;         // 50ms
-	
-	// MTU2 ch2
-    MTU22.TCR.BIT.TPSC = 3;         // 1/64選択
-    MTU22.TCR.BIT.CCLR = 1;         // TGRAのコンペアマッチでクリア
-    MTU22.TGRA = 1563 - 1;          // 5ms
-	
-	// MTU2 ch3
-    MTU23.TCR.BIT.TPSC = 0;         // 1/64選択
-    MTU23.TCR.BIT.CCLR = 1;         // TGRAのコンペアマッチでクリア
-    MTU23.TGRA = 858000 - 1;			//	音を変える
-	
-	SPK = 0;
+    MTU21.TGRA = 25000 - 1;         // 80ms
  
     LCD_init();
  
     MTU2.TSTR.BIT.CST0 = 1;         // MTU2 CH0スタート
     MTU2.TSTR.BIT.CST1 = 1;         // MTU2 CH1スタート
-	MTU2.TSTR.BIT.CST2 = 1;         // MTU2 CH2スタート
-	MTU2.TSTR.BIT.CST3 = 1;         // MTU2 CH3スタート
 	
 	PFC.PEIORL.BIT.B11 = 1;
 	
-	if (!card_exist())
+	if (!card_exist()) {
 		printf("No card found\n");
-	else {
-		if (Enter_SPI_mode() < 0)
+	} else {
+		if (Enter_SPI_mode() < 0) {
 			printf("SPI mode Err\n");
-		else {
-			printf("SPI mode\n");
-
+		} else {
+			//printf("SPI mode\n");
 			SD_send_cmd(0x50, 512);		// ブロックサイズ=512
 
 			// MBR
 			read_sector(0, dt);
 			First_sect_LBA = (dt[457] << 24) | (dt[456] << 16) | (dt[455] << 8) | dt[454];
-
-			//
 			// BPB
-			read_sector(0x19, dt);
-			
+			read_sector(0x19, dt);	
 			// BPB_BytesPerSec
 			BPB_BytesPerSec	= (dt[12] << 8) | dt[11];
-			
 			// BPB_SecPerClus
 			BPB_SecPerClus	= dt[13];
-			
 			// BPB_RsvdSecCnt
 			BPB_RsvdSecCnt = (dt[15] << 2) | dt[14];
-			
 			// BPB_NumFATs
 			BPB_NumFATs = dt[16];
-			
 			// BPB_RootEntCnt
 			BPB_RootEntCnt = (dt[18] << 8) | dt[17];
-			
 			// BPB_FATSz16
 			BPB_FATSz16 = (dt[23] << 8) | dt[22];
-			
 			// First_FAT_sect
 			First_FAT_sect = First_sect_LBA + BPB_RsvdSecCnt;
-			
 			// First_RDE_sect
 			First_RDE_sect = First_sect_LBA + BPB_RsvdSecCnt + (BPB_NumFATs * BPB_FATSz16);
-			
 			// First_Data_sect
 			First_Data_sect = First_RDE_sect + (32*BPB_RootEntCnt) / BPB_BytesPerSec;
-				
-			/* BALL */
+			
+			/* ボール画像読み込み */
 			readsize = 0;
 			imgNum = 0;
 			img_firstFlag = 0;
@@ -868,44 +743,37 @@ void main()
 			read_sector(First_RDE_sect, dt);
 			
 			i = 10;
-				
-				// FstClusLO
-				FstClusLO = (dt[i * 32 + 27] << 8) | dt[i * 32 + 26];
-				
-				// FileSize
-				FileSize = (dt[i * 32 + 31] << 24) | (dt[i * 32 + 30] << 16) | (dt[i * 32 + 29] << 8) | dt[i * 32 + 28];
-				
-				//FAT
-				read_sector(First_FAT_sect, fat);
-				cluster = FstClusLO;
-				//printf("%d ", cluster);
-				while (cluster != 0xffff) {
-					for (i = 0; i < BPB_SecPerClus; i ++) {
-						read_sector((cluster - 2) * BPB_SecPerClus + First_Data_sect + i, dt);
-						//printf("%d ", cluster);
-						
-						for (j = 0; j < 512; j+=2) {
-							readsize+=2;
-							if (readsize > FileSize) {
-								break;
-							}
-							if (img_firstFlag == 0) {
-								if (j == 4) {
-									img_firstFlag = 1;
-								}
-							}
-							//printf("%c", dt[j]);
-							if (img_firstFlag == 1){
-								img_A[imgNum] = (dt[j] << 8) | dt[j+1];
-								imgNum++;
+			
+			// FstClusLO
+			FstClusLO = (dt[i * 32 + 27] << 8) | dt[i * 32 + 26];
+			// FileSize
+			FileSize = (dt[i * 32 + 31] << 24) | (dt[i * 32 + 30] << 16) | (dt[i * 32 + 29] << 8) | dt[i * 32 + 28];
+			//FAT
+			read_sector(First_FAT_sect, fat);
+			cluster = FstClusLO;
+			while (cluster != 0xffff) {
+				for (i = 0; i < BPB_SecPerClus; i ++) {
+					read_sector((cluster - 2) * BPB_SecPerClus + First_Data_sect + i, dt);
+					for (j = 0; j < 512; j+=2) {
+						readsize+=2;
+						if (readsize > FileSize) {
+							break;
+						}
+						if (img_firstFlag == 0) {
+							if (j == 4) {
+								img_firstFlag = 1;
 							}
 						}
+						if (img_firstFlag == 1){
+							img_A[imgNum] = (dt[j] << 8) | dt[j+1];
+							imgNum++;
+						}
 					}
-					cluster = (fat[cluster * 2 + 1] << 8) | fat[cluster * 2];
-					printf("%d ", cluster);
 				}
+				cluster = (fat[cluster * 2 + 1] << 8) | fat[cluster * 2];
+			}
 			
-			/* PLAYER */
+			/* プレイヤー画像読み込み */
 			readsize = 0;
 			imgNum = 0;
 			img_firstFlag = 0;
@@ -914,84 +782,37 @@ void main()
 			read_sector(First_RDE_sect, dt);
 			
 			i = 11;
-				
-				// Name
-				printf("Name : ");
-				for (j = 0; j < 8; j++) {
-					if (isprint(dt[i * 32 + j]))
-						printf("%c", dt[i * 32 + j]);
-					else
-						printf(".");	
-				}
-				printf("\n");
-				
-				// Ext
-				printf("Ext : .");
-				for (j = 0; j < 3; j++) {
-					if (isprint(dt[i * 32 + j + 8]))
-						printf("%c", dt[i * 32 + j + 8]);
-					else
-						printf(".");
-				}
-				printf("\n");
-				
-				// Attr
-				if (dt[i * 32 + 11] == 0x10) {
-					printf("Attr : DIR\n");
-				}
-				else {
-					printf("Attr : FILE\n");
-				}
-				// CrtDate
-				// File_year, File_month, File_date, File_hour, File_min, File_sec;
-				File_year = (dt[i * 32 + 25] >> 1) + 1980;
-				File_month = ((dt[i * 32 + 25] & 0x01) << 3) | (dt[i * 32 + 24] >> 5);
-				File_date = dt[i * 32 + 24] & 0x1f;
-				File_hour = dt[i * 32 + 23] >> 3;
-				File_min = ((dt[i * 32 + 23] & 0x07) << 3) | dt[i * 32 + 22] >> 5;
-				File_sec = dt[i * 32 + 22] & 0x1f;
-				
-				printf("Date : %d/%d/%d %d:%d:%d\n", File_year, File_month, File_date, File_hour, File_min, File_sec);
-				
-				// FstClusLO
-				FstClusLO = (dt[i * 32 + 27] << 8) | dt[i * 32 + 26];
-				printf("FstClusLO = %d\n", FstClusLO);
-				
-				// FileSize
-				FileSize = (dt[i * 32 + 31] << 24) | (dt[i * 32 + 30] << 16) | (dt[i * 32 + 29] << 8) | dt[i * 32 + 28];
-				printf("FileSize = %d Byte\n\n", FileSize);
-				
-				//FAT
-				read_sector(First_FAT_sect, fat);
-				cluster = FstClusLO;
-				printf("%d ", cluster);
-				while (cluster != 0xffff) {
-					for (i = 0; i < BPB_SecPerClus; i ++) {
-						read_sector((cluster - 2) * BPB_SecPerClus + First_Data_sect + i, dt);
-						//printf("%d ", cluster);
 						
-						for (j = 0; j < 512; j+=2) {
-							readsize+=2;
-							if (readsize > FileSize) {
-								break;
-							}
-							if (img_firstFlag == 0) {
-								if (j == 4) {
-									img_firstFlag = 1;
-								}
-							}
-							//printf("%c", dt[j]);
-							if (img_firstFlag == 1){
-								img_B[imgNum] = (dt[j] << 8) | dt[j+1];
-								imgNum++;
+			// FstClusLO
+			FstClusLO = (dt[i * 32 + 27] << 8) | dt[i * 32 + 26];
+			// FileSize
+			FileSize = (dt[i * 32 + 31] << 24) | (dt[i * 32 + 30] << 16) | (dt[i * 32 + 29] << 8) | dt[i * 32 + 28];
+			//FAT
+			read_sector(First_FAT_sect, fat);
+			cluster = FstClusLO;
+			while (cluster != 0xffff) {
+				for (i = 0; i < BPB_SecPerClus; i ++) {
+					read_sector((cluster - 2) * BPB_SecPerClus + First_Data_sect + i, dt);
+					for (j = 0; j < 512; j+=2) {
+						readsize+=2;
+						if (readsize > FileSize) {
+							break;
+						}
+						if (img_firstFlag == 0) {
+							if (j == 4) {
+								img_firstFlag = 1;
 							}
 						}
+						if (img_firstFlag == 1){
+							img_B[imgNum] = (dt[j] << 8) | dt[j+1];
+							imgNum++;
+						}
 					}
-					cluster = (fat[cluster * 2 + 1] << 8) | fat[cluster * 2];
-					printf("%d ", cluster);
 				}
-				
-			/* BLOCK */
+				cluster = (fat[cluster * 2 + 1] << 8) | fat[cluster * 2];
+			}
+			
+			/* ブロック画像読み込み */
 			readsize = 0;
 			imgNum = 0;
 			img_firstFlag = 0;
@@ -1000,343 +821,188 @@ void main()
 			read_sector(First_RDE_sect, dt);
 			
 			i = 12;
-				
-				// Name
-				printf("Name : ");
-				for (j = 0; j < 8; j++) {
-					if (isprint(dt[i * 32 + j]))
-						printf("%c", dt[i * 32 + j]);
-					else
-						printf(".");	
-				}
-				printf("\n");
-				
-				// Ext
-				printf("Ext : .");
-				for (j = 0; j < 3; j++) {
-					if (isprint(dt[i * 32 + j + 8]))
-						printf("%c", dt[i * 32 + j + 8]);
-					else
-						printf(".");
-				}
-				printf("\n");
-				
-				// Attr
-				if (dt[i * 32 + 11] == 0x10) {
-					printf("Attr : DIR\n");
-				}
-				else {
-					printf("Attr : FILE\n");
-				}
-				// CrtDate
-				// File_year, File_month, File_date, File_hour, File_min, File_sec;
-				File_year = (dt[i * 32 + 25] >> 1) + 1980;
-				File_month = ((dt[i * 32 + 25] & 0x01) << 3) | (dt[i * 32 + 24] >> 5);
-				File_date = dt[i * 32 + 24] & 0x1f;
-				File_hour = dt[i * 32 + 23] >> 3;
-				File_min = ((dt[i * 32 + 23] & 0x07) << 3) | dt[i * 32 + 22] >> 5;
-				File_sec = dt[i * 32 + 22] & 0x1f;
-				
-				printf("Date : %d/%d/%d %d:%d:%d\n", File_year, File_month, File_date, File_hour, File_min, File_sec);
-				
-				// FstClusLO
-				FstClusLO = (dt[i * 32 + 27] << 8) | dt[i * 32 + 26];
-				printf("FstClusLO = %d\n", FstClusLO);
-				
-				// FileSize
-				FileSize = (dt[i * 32 + 31] << 24) | (dt[i * 32 + 30] << 16) | (dt[i * 32 + 29] << 8) | dt[i * 32 + 28];
-				printf("FileSize = %d Byte\n\n", FileSize);
-				
-				//FAT
-				read_sector(First_FAT_sect, fat);
-				cluster = FstClusLO;
-				printf("%d ", cluster);
-				while (cluster != 0xffff) {
-					for (i = 0; i < BPB_SecPerClus; i ++) {
-						read_sector((cluster - 2) * BPB_SecPerClus + First_Data_sect + i, dt);
-						//printf("%d ", cluster);
-						
-						for (j = 0; j < 512; j+=2) {
-							readsize+=2;
-							if (readsize > FileSize) {
-								break;
-							}
-							if (img_firstFlag == 0) {
-								if (j == 4) {
-									img_firstFlag = 1;
-								}
-							}
-							//printf("%c", dt[j]);
-							if (img_firstFlag == 1){
-								img_C[imgNum] = (dt[j] << 8) | dt[j+1];
-								imgNum++;
+			
+			// FstClusLO
+			FstClusLO = (dt[i * 32 + 27] << 8) | dt[i * 32 + 26];
+			// FileSize
+			FileSize = (dt[i * 32 + 31] << 24) | (dt[i * 32 + 30] << 16) | (dt[i * 32 + 29] << 8) | dt[i * 32 + 28];
+			//FAT
+			read_sector(First_FAT_sect, fat);
+			cluster = FstClusLO;
+			while (cluster != 0xffff) {
+				for (i = 0; i < BPB_SecPerClus; i ++) {
+					read_sector((cluster - 2) * BPB_SecPerClus + First_Data_sect + i, dt);
+					for (j = 0; j < 512; j+=2) {
+						readsize+=2;
+						if (readsize > FileSize) {
+							break;
+						}
+						if (img_firstFlag == 0) {
+							if (j == 4) {
+								img_firstFlag = 1;
 							}
 						}
+						if (img_firstFlag == 1){
+							img_C[imgNum] = (dt[j] << 8) | dt[j+1];
+							imgNum++;
+						}
 					}
-					cluster = (fat[cluster * 2 + 1] << 8) | fat[cluster * 2];
-					printf("%d ", cluster);
 				}
-				
-				/* BLOCK2 */
+				cluster = (fat[cluster * 2 + 1] << 8) | fat[cluster * 2];
+			}
+			
+			/* 黄色ブロック画像読み込み */
 			readsize = 0;
 			imgNum = 0;
 			img_firstFlag = 0;
 			
 			//RDE
 			read_sector(First_RDE_sect, dt);
-			
 			i = 13;
-				
-				// Name
-				printf("Name : ");
-				for (j = 0; j < 8; j++) {
-					if (isprint(dt[i * 32 + j]))
-						printf("%c", dt[i * 32 + j]);
-					else
-						printf(".");	
-				}
-				printf("\n");
-				
-				// Ext
-				printf("Ext : .");
-				for (j = 0; j < 3; j++) {
-					if (isprint(dt[i * 32 + j + 8]))
-						printf("%c", dt[i * 32 + j + 8]);
-					else
-						printf(".");
-				}
-				printf("\n");
-				
-				// Attr
-				if (dt[i * 32 + 11] == 0x10) {
-					printf("Attr : DIR\n");
-				}
-				else {
-					printf("Attr : FILE\n");
-				}
-				// CrtDate
-				// File_year, File_month, File_date, File_hour, File_min, File_sec;
-				File_year = (dt[i * 32 + 25] >> 1) + 1980;
-				File_month = ((dt[i * 32 + 25] & 0x01) << 3) | (dt[i * 32 + 24] >> 5);
-				File_date = dt[i * 32 + 24] & 0x1f;
-				File_hour = dt[i * 32 + 23] >> 3;
-				File_min = ((dt[i * 32 + 23] & 0x07) << 3) | dt[i * 32 + 22] >> 5;
-				File_sec = dt[i * 32 + 22] & 0x1f;
-				
-				printf("Date : %d/%d/%d %d:%d:%d\n", File_year, File_month, File_date, File_hour, File_min, File_sec);
-				
-				// FstClusLO
-				FstClusLO = (dt[i * 32 + 27] << 8) | dt[i * 32 + 26];
-				printf("FstClusLO = %d\n", FstClusLO);
-				
-				// FileSize
-				FileSize = (dt[i * 32 + 31] << 24) | (dt[i * 32 + 30] << 16) | (dt[i * 32 + 29] << 8) | dt[i * 32 + 28];
-				printf("FileSize = %d Byte\n\n", FileSize);
-				
-				//FAT
-				read_sector(First_FAT_sect, fat);
-				cluster = FstClusLO;
-				printf("%d ", cluster);
-				while (cluster != 0xffff) {
-					for (i = 0; i < BPB_SecPerClus; i ++) {
-						read_sector((cluster - 2) * BPB_SecPerClus + First_Data_sect + i, dt);
-						//printf("%d ", cluster);
-						
-						for (j = 0; j < 512; j+=2) {
-							readsize+=2;
-							if (readsize > FileSize) {
-								break;
-							}
-							if (img_firstFlag == 0) {
-								if (j == 4) {
-									img_firstFlag = 1;
-								}
-							}
-							//printf("%c", dt[j]);
-							if (img_firstFlag == 1){
-								img_D[imgNum] = (dt[j] << 8) | dt[j+1];
-								imgNum++;
-							}
-						}
-					}
-					cluster = (fat[cluster * 2 + 1] << 8) | fat[cluster * 2];
-					printf("%d ", cluster);
-				}
-				
-				
-					/* BLOCK3 */
-			readsize = 0;
-			imgNum = 0;
-			img_firstFlag = 0;
 			
-			//RDE
-			read_sector(First_RDE_sect, dt);
+			// FstClusLO
+			FstClusLO = (dt[i * 32 + 27] << 8) | dt[i * 32 + 26];
+			// FileSize
+			FileSize = (dt[i * 32 + 31] << 24) | (dt[i * 32 + 30] << 16) | (dt[i * 32 + 29] << 8) | dt[i * 32 + 28];
+			//FAT
+			read_sector(First_FAT_sect, fat);
+			cluster = FstClusLO;
+			while (cluster != 0xffff) {
+				for (i = 0; i < BPB_SecPerClus; i ++) {
+					read_sector((cluster - 2) * BPB_SecPerClus + First_Data_sect + i, dt);
+					for (j = 0; j < 512; j+=2) {
+						readsize+=2;
+						if (readsize > FileSize) {
+							break;
+						}
+						if (img_firstFlag == 0) {
+							if (j == 4) {
+								img_firstFlag = 1;
+							}
+						}
+						if (img_firstFlag == 1){
+							img_D[imgNum] = (dt[j] << 8) | dt[j+1];
+							imgNum++;
+						}
+					}
+				}
+				cluster = (fat[cluster * 2 + 1] << 8) | fat[cluster * 2];
+			}
 			
-			i = 14;
+			//printf("import done\n");
+			
+			// プレイヤーの座標を初期化
+			player.x = 144;
+			player.y = 224;
+			
+			// ボールの座標, ベクトルを初期化
+			ball.x = 156;
+			ball.dx = -3;
+			ball.y = 216;
+			ball.dy = -3;
 				
-				// Name
-				printf("Name : ");
-				for (j = 0; j < 8; j++) {
-					if (isprint(dt[i * 32 + j]))
-						printf("%c", dt[i * 32 + j]);
-					else
-						printf(".");	
-				}
-				printf("\n");
-				
-				// Ext
-				printf("Ext : .");
-				for (j = 0; j < 3; j++) {
-					if (isprint(dt[i * 32 + j + 8]))
-						printf("%c", dt[i * 32 + j + 8]);
-					else
-						printf(".");
-				}
-				printf("\n");
-				
-				// Attr
-				if (dt[i * 32 + 11] == 0x10) {
-					printf("Attr : DIR\n");
-				}
-				else {
-					printf("Attr : FILE\n");
-				}
-				// CrtDate
-				// File_year, File_month, File_date, File_hour, File_min, File_sec;
-				File_year = (dt[i * 32 + 25] >> 1) + 1980;
-				File_month = ((dt[i * 32 + 25] & 0x01) << 3) | (dt[i * 32 + 24] >> 5);
-				File_date = dt[i * 32 + 24] & 0x1f;
-				File_hour = dt[i * 32 + 23] >> 3;
-				File_min = ((dt[i * 32 + 23] & 0x07) << 3) | dt[i * 32 + 22] >> 5;
-				File_sec = dt[i * 32 + 22] & 0x1f;
-				
-				printf("Date : %d/%d/%d %d:%d:%d\n", File_year, File_month, File_date, File_hour, File_min, File_sec);
-				
-				// FstClusLO
-				FstClusLO = (dt[i * 32 + 27] << 8) | dt[i * 32 + 26];
-				printf("FstClusLO = %d\n", FstClusLO);
-				
-				// FileSize
-				FileSize = (dt[i * 32 + 31] << 24) | (dt[i * 32 + 30] << 16) | (dt[i * 32 + 29] << 8) | dt[i * 32 + 28];
-				printf("FileSize = %d Byte\n\n", FileSize);
-				
-				//FAT
-				read_sector(First_FAT_sect, fat);
-				cluster = FstClusLO;
-				printf("%d ", cluster);
-				while (cluster != 0xffff) {
-					for (i = 0; i < BPB_SecPerClus; i ++) {
-						read_sector((cluster - 2) * BPB_SecPerClus + First_Data_sect + i, dt);
-						//printf("%d ", cluster);
-						
-						for (j = 0; j < 512; j+=2) {
-							readsize+=2;
-							if (readsize > FileSize) {
-								break;
-							}
-							if (img_firstFlag == 0) {
-								if (j == 4) {
-									img_firstFlag = 1;
-								}
-							}
-							//printf("%c", dt[j]);
-							if (img_firstFlag == 1){
-								img_E[imgNum] = (dt[j] << 8) | dt[j+1];
-								imgNum++;
-							}
-						}
+			/* 画像を描画 */
+			TFT_put_img(ball.x, ball.y, 8, 8, img_A);
+			TFT_put_img(player.x, player.y, 32, 6, img_B);
+			for (i = 0; i < 11; i++) {
+				for (j = 0; j < 10; j++) {
+					block_p->x = 40+(24*j);
+					block_p->y = 24+(8*i);
+					if (j % 2 == 0) {
+						block_p->active = 1;
+						blocks++;
+						TFT_put_img(block_p->x, block_p->y, 24, 8, img_C);
 					}
-					cluster = (fat[cluster * 2 + 1] << 8) | fat[cluster * 2];
-					printf("%d ", cluster);
-				}
-				
-				printf("import done\n");
-				
-				player.x = 144;
-				player.y = 224;
-				
-				ball.x = 156;
-				ball.dx = -3;
-				ball.y = 216;
-				ball.dy = -3;
-				
-				/*
-				printf("field\n");				
-				for (i = 0; i < 11; i++) {
-					for (j = 0; j < 10; j++) {
-						if (i % 2 != 0) {
-							field[i] = 0;
-						}
-						else {
-							if (j % 2 == 0) {
-								field[i] = 1;
-							}
-							else {
-								field[i] = 2;
-							}
-						}
+					else if (j % 2 != 0) {
+						block_p->active = 2;
+						blocks +=2 ;
+						TFT_put_img(block_p->x, block_p->y, 24, 8, img_D);
 					}
-				}
-				*/
-				
-				/* Draw images */
-				TFT_put_img(ball.x, ball.y, 8, 8, img_A);
-				TFT_put_img(player.x, player.y, 32, 6, img_B);
-				for (i = 0; i < 11; i++) {
-					for (j = 0; j < 10; j++) {
-						block_p->x = 40+(24*j);
-						block_p->y = 24+(8*i);
-						if (j % 2 == 0) {
-							block_p->active = 1;
-							blocks++;
-							//printf("%d, %d\n", block_p->x, block_p->y);
-							TFT_put_img(block_p->x, block_p->y, 24, 8, img_C);
-						}
-						else if (j % 2 != 0) {
-							block_p->active = 2;
-							blocks +=2 ;
-							TFT_put_img(block_p->x, block_p->y, 24, 8, img_D);
-						}
-						else {
-							block_p->active = 0;
-							//TFT_put_img(block_p->x, block_p->y, 24, 8, img_E);
-						}
-						block_p++;
+					else {
 					}
+					block_p++;
 				}
-				printf("%d,%d\n", i, j);
-  				TFT_draw_screen();
-				block_p = block;
-				
-				LCD_init();	//	LCDを初期化
-				score = 0;
-				disp_life(life);
-				disp_score(score);
-				
-				status = STOP;
-				
-				printf("%d\n", blocks);
-				printf("start\n");
-
+			}
+  			TFT_draw_screen();
+			/* ----------------------------------------- */
+			
+			block_p = block;
+			
+			LCD_init();	//	LCDを初期化
+			score = 0;	// スコアを初期化
+			disp_life(life);	// 残機表示
+			disp_score(score);	// スコア表示
+			
+			status = STOP;	// 待機画面に移行
+			
+			//printf("start\n");
 			// ----------------
 			while (1) {
 				if (MTU21.TSR.BIT.TGFA) { // ゲーム用のタイマのフラグ
-		            // MTU2 ch1 コンペアマッチ発生(100ms毎)
+		            // MTU2 ch1 コンペアマッチ発生(80ms毎)
 		            MTU21.TSR.BIT.TGFA = 0; // フラグクリア
 					
- 
-		            // 80msに1回、スイッチを読む
+		            // 80msに1回スイッチを読む
 		            stop_sw = SW4;
 		            pause_sw = SW5;
 		            run_sw = SW6;
 					
+					// ゲーム画面
 					if (status == RUN) {
-						move_ball(&ball, &player, block_p);
-						move_me(&player);
+						move_ball(&ball, &player, block_p);	// ボール移動
+						move_me(&player);					// プレイヤー移動
 					
 						TFT_draw_screen();
-						if (pause_sw) {
+						if (pause_sw) {	// ポーズ画面へ移行
 							status = PAUSE1;
+						}
+						if (stop_sw) {	//	stopスイッチが押された場合
+							LCD_init();	//	LCDを初期化
+							score = 0;	//
+							life = 3;	// 残機, スコアを初期化
+							disp_life(life);
+							disp_score(score);
+							
+							// プレイヤーの座標を初期化
+							player.x = 144;
+							player.y = 224;
+				
+							// ボールの座標, ベクトルを初期化
+							ball.x = 156;
+							ball.dx = -3;
+							ball.y = 216;
+							ball.dy = -3;
+							
+							// TFTの表示を初期化
+							TFT_clear();
+							
+							/* 画像描画 */
+							TFT_put_img(ball.x, ball.y, 8, 8, img_A);
+							TFT_put_img(player.x, player.y, 32, 6, img_B);
+							for (i = 0; i < 11; i++) {
+								for (j = 0; j < 10; j++) {
+									block_p->x = 40+(24*j);
+									block_p->y = 24+(8*i);
+									if (j % 2 == 0) {
+										block_p->active = 1;
+										blocks++;
+										TFT_put_img(block_p->x, block_p->y, 24, 8, img_C);
+									}
+									else if (j % 2 != 0) {
+										block_p->active = 2;
+										blocks +=2 ;
+										TFT_put_img(block_p->x, block_p->y, 24, 8, img_D);
+									}
+									else {
+										block_p->active = 0;
+									}
+									block_p++;
+								}
+							}
+			  				TFT_draw_screen();
+							block_p = block;
+							
+							status = STOP;	// 待機画面に移行
 						}
 					}
 					else if (status == PAUSE1) {
@@ -1348,19 +1014,25 @@ void main()
 						LCD_putstr("PAUSE");	//	PAUSEを画面に表示
 						if (stop_sw) {	//	stopスイッチが押されたら
 							LCD_init();	//	LCDを初期化
-							score = 0;
-							life = 3;
+							score = 0;	//
+							life = 3;	// 残機, スコアを初期化
 							disp_life(life);
 							disp_score(score);
+							
+							// プレイヤーの座標を初期化
 							player.x = 144;
 							player.y = 224;
 				
+							// ボールの座標を初期化
 							ball.x = 156;
 							ball.dx = -3;
 							ball.y = 216;
 							ball.dy = -3;
+							
+							// TFT表示内容初期化
 							TFT_clear();
-							/* Draw images */
+							
+							/* 画像描画 */
 							TFT_put_img(ball.x, ball.y, 8, 8, img_A);
 							TFT_put_img(player.x, player.y, 32, 6, img_B);
 							for (i = 0; i < 11; i++) {
@@ -1370,7 +1042,6 @@ void main()
 									if (j % 2 == 0) {
 										block_p->active = 1;
 										blocks++;
-										//printf("%d, %d\n", block_p->x, block_p->y);
 										TFT_put_img(block_p->x, block_p->y, 24, 8, img_C);
 									}
 									else if (j % 2 != 0) {
@@ -1380,14 +1051,14 @@ void main()
 									}
 									else {
 										block_p->active = 0;
-										//TFT_put_img(block_p->x, block_p->y, 24, 8, img_E);
 									}
 									block_p++;
 								}
 							}
 			  				TFT_draw_screen();
 							block_p = block;
-							status = STOP;	//	statusをSTOPに変更
+							
+							status = STOP;	//	待機画面に移行
 						}
 		                if (pause_sw) { // pause_sw が ON なら
 							LCD_init();	//	LCDを初期化
@@ -1397,9 +1068,8 @@ void main()
 						}
 		            } else if (status == PAUSE3) {
 		                if (!pause_sw) // pause_sw が OFF なら
-		                    status = RUN; // sutatus を RUN へ
-					} else if (status == CLEAR) {	//	CLEAR画面
-						//	クリア画面
+		                    status = RUN; // ゲーム画面に移行
+					} else if (status == CLEAR) {	//	クリア画面
 						LCD_init();	//	LCDを初期化
 						disp_score(score);
 						LCD_cursor(5, 1);
@@ -1407,20 +1077,25 @@ void main()
 				
 						if (stop_sw) {	//	stopスイッチが押された場合
 							LCD_init();	//	LCDを初期化
-							score = 0;
-							life = 3;
+							score = 0;	//
+							life = 3;	// 残機, スコアを初期化
 							disp_life(life);
 							disp_score(score);
 							
+							// プレイヤーの座標を初期化
 							player.x = 144;
 							player.y = 224;
 				
+							// ボールの座標, ベクトルを初期化
 							ball.x = 156;
 							ball.dx = -3;
 							ball.y = 216;
 							ball.dy = -3;
+							
+							// TFT表示内容初期化
 							TFT_clear();
-							/* Draw images */
+							
+							/* 画像描画 */
 							TFT_put_img(ball.x, ball.y, 8, 8, img_A);
 							TFT_put_img(player.x, player.y, 32, 6, img_B);
 							for (i = 0; i < 11; i++) {
@@ -1430,7 +1105,6 @@ void main()
 									if (j % 2 == 0) {
 										block_p->active = 1;
 										blocks++;
-										//printf("%d, %d\n", block_p->x, block_p->y);
 										TFT_put_img(block_p->x, block_p->y, 24, 8, img_C);
 									}
 									else if (j % 2 != 0) {
@@ -1440,22 +1114,78 @@ void main()
 									}
 									else {
 										block_p->active = 0;
-										//TFT_put_img(block_p->x, block_p->y, 24, 8, img_E);
 									}
 									block_p++;
 								}
 							}
 			  				TFT_draw_screen();
 							block_p = block;
-							status = STOP;	//	ステータスをSTOPに設定
+							
+							status = STOP;	//	待機画面に移行
 						}
-		            } else if (status == STOP) {
+		            } else if (status == FAIL) {	// ゲームオーバー画面
+						LCD_init();	//	LCDを初期化
+						disp_score(score);
+						LCD_cursor(4, 1);
+						LCD_putstr("GAME OVER");
+						
+						if (stop_sw) {	//	stopスイッチが押された場合
+							LCD_init();	//	LCDを初期化
+							score = 0;	//
+							life = 3;	// 残機, スコアを初期化
+							disp_life(life);
+							disp_score(score);
+							
+							// プレイヤーの座標を初期化
+							player.x = 144;
+							player.y = 224;
+				
+							// ボールの座標, ベクトルを初期化
+							ball.x = 156;
+							ball.dx = -3;
+							ball.y = 216;
+							ball.dy = -3;
+							
+							// TFT表示内容初期化
+							TFT_clear();
+							
+							/* 画像描画 */
+							TFT_put_img(ball.x, ball.y, 8, 8, img_A);
+							TFT_put_img(player.x, player.y, 32, 6, img_B);
+							for (i = 0; i < 11; i++) {
+								for (j = 0; j < 10; j++) {
+									block_p->x = 40+(24*j);
+									block_p->y = 24+(8*i);
+									if (j % 2 == 0) {
+										block_p->active = 1;
+										blocks++;
+										TFT_put_img(block_p->x, block_p->y, 24, 8, img_C);
+									}
+									else if (j % 2 != 0) {
+										block_p->active = 2;
+										blocks +=2 ;
+										TFT_put_img(block_p->x, block_p->y, 24, 8, img_D);
+									}
+									else {
+										block_p->active = 0;
+									}
+									block_p++;
+								}
+							}
+			  				TFT_draw_screen();
+							block_p = block;
+							
+							status = STOP;	//	待機画面に移行
+						}
+		   			} else if (status == STOP) { // 待機画面
 		                // 停止中
 		                if (run_sw) {	//	接待モード（先生用）
 							if (AD0.ADDR0 < 0x4000) {	//	ジョイスティックを上に倒した状態でスタートさせる
-								blocks = 1;
+								blocks = 1;			// 残りブロック数を変更
+								score = 9999;		// スコアを変更
+								disp_score(score);
 							}
-		                    status= RUN;
+		                    status= RUN;	// ゲーム画面に移行
 						}
 		            }
 				}
